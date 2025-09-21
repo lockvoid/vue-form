@@ -45,13 +45,14 @@ const triggerBlur = (binding: any, value?: unknown) => {
 
 const makeSchema = () => v.pipe(v.object({ email: v.pipe(v.string(), v.email()) }));
 
-const makeForm = (onSubmit: (values: any) => any, validationMode: 'change' | 'submit' | 'blur' = 'change') => {
+const makeForm = (onSubmit: (values: any) => any, validationMode: 'change' | 'submit' | 'blur' = 'change', initialValues?: Record<string, any>) => {
   const scope = effectScope();
   const form = scope.run(() =>
     useForm({
       schema: makeSchema(),
       validationMode,
       onSubmit,
+      ...(initialValues && { initialValues }),
     })
   )!;
   return { scope, form };
@@ -322,6 +323,170 @@ describe('useForm — unit', () => {
       expect(form.errors.email).toBeTruthy();
       expect(unref(form.isInvalid)).toBe(true);
 
+      scope.stop();
+    });
+  });
+
+  describe('initialValues', () => {
+    it('uses empty object as default when no initialValues provided', () => {
+      const { scope, form } = makeForm(vi.fn());
+      
+      expect(form.values).toEqual({});
+      expect(form.getValue('email')).toBeUndefined();
+      
+      scope.stop();
+    });
+
+    it('sets initial values correctly', () => {
+      const initialValues = { email: 'test@example.com' };
+      const { scope, form } = makeForm(vi.fn(), 'change', initialValues);
+      
+      expect(form.values).toEqual(initialValues);
+      expect(form.getValue('email')).toBe('test@example.com');
+      
+      scope.stop();
+    });
+
+    it('validates initial values in change mode', async () => {
+      const initialValues = { email: 'invalid-email' };
+      const { scope, form } = makeForm(vi.fn(), 'change', initialValues);
+      
+      await nextTick();
+      expect(unref(form.isInvalid)).toBe(true);
+      expect(form.errors.email).toBeTruthy();
+      
+      scope.stop();
+    });
+
+    it('does not validate initial values in submit mode', async () => {
+      const initialValues = { email: 'invalid-email' };
+      const { scope, form } = makeForm(vi.fn(), 'submit', initialValues);
+      
+      await nextTick();
+      expect(unref(form.isInvalid)).toBe(false); // Appears valid until submit
+      expect(form.errors.email).toBeUndefined();
+      
+      scope.stop();
+    });
+
+    it('does not validate initial values in blur mode', async () => {
+      const initialValues = { email: 'invalid-email' };
+      const { scope, form } = makeForm(vi.fn(), 'blur', initialValues);
+      
+      await nextTick();
+      expect(unref(form.isInvalid)).toBe(false); // Appears valid until blur
+      expect(form.errors.email).toBeUndefined();
+      
+      scope.stop();
+    });
+
+    it('allows changing values from initial values', async () => {
+      const initialValues = { email: 'initial@example.com' };
+      const { scope, form } = makeForm(vi.fn(), 'change', initialValues);
+      const email = form.bind('email');
+      
+      expect(form.getValue('email')).toBe('initial@example.com');
+      
+      setBoundFieldValue(email, 'new@example.com');
+      await nextTick();
+      
+      expect(form.getValue('email')).toBe('new@example.com');
+      expect(form.values.email).toBe('new@example.com');
+      
+      scope.stop();
+    });
+
+    it('submits with initial values when valid', async () => {
+      const onSubmit = vi.fn();
+      const initialValues = { email: 'valid@example.com' };
+      const { scope, form } = makeForm(onSubmit, 'change', initialValues);
+      
+      await form.submit();
+      await nextTick();
+      
+      expect(onSubmit).toHaveBeenCalledWith({ email: 'valid@example.com' });
+      
+      scope.stop();
+    });
+
+    it('does not submit with invalid initial values', async () => {
+      const onSubmit = vi.fn();
+      const initialValues = { email: 'invalid-email' };
+      const { scope, form } = makeForm(onSubmit, 'change', initialValues);
+      
+      await form.submit();
+      await nextTick();
+      
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(form.errors.email).toBeTruthy();
+      
+      scope.stop();
+    });
+
+    it('resets to initial values when reset is called without arguments', async () => {
+      const initialValues = { email: 'initial@example.com' };
+      const { scope, form } = makeForm(vi.fn(), 'change', initialValues);
+      const email = form.bind('email');
+      
+      // Change value
+      setBoundFieldValue(email, 'changed@example.com');
+      await nextTick();
+      expect(form.getValue('email')).toBe('changed@example.com');
+      
+      // Reset
+      form.reset();
+      await nextTick();
+      expect(form.getValue('email')).toBe('initial@example.com');
+      expect(form.values).toEqual(initialValues);
+      
+      scope.stop();
+    });
+
+    it('resets to new values when reset is called with arguments', async () => {
+      const initialValues = { email: 'initial@example.com' };
+      const newValues = { email: 'new@example.com' };
+      const { scope, form } = makeForm(vi.fn(), 'change', initialValues);
+      
+      form.reset(newValues);
+      await nextTick();
+      
+      expect(form.getValue('email')).toBe('new@example.com');
+      expect(form.values).toEqual(newValues);
+      
+      scope.stop();
+    });
+
+    it('handles multiple initial values', () => {
+      const makeMultiFieldSchema = () => v.pipe(v.object({ 
+        email: v.pipe(v.string(), v.email()),
+        name: v.pipe(v.string(), v.minLength(1))
+      }));
+      
+      const initialValues = { email: 'test@example.com', name: 'John Doe' };
+      const scope = effectScope();
+      const form = scope.run(() =>
+        useForm({
+          schema: makeMultiFieldSchema(),
+          validationMode: 'change',
+          onSubmit: vi.fn(),
+          initialValues,
+        })
+      )!;
+      
+      expect(form.values).toEqual(initialValues);
+      expect(form.getValue('email')).toBe('test@example.com');
+      expect(form.getValue('name')).toBe('John Doe');
+      
+      scope.stop();
+    });
+
+    it('binding reflects initial values', () => {
+      const initialValues = { email: 'test@example.com' };
+      const { scope, form } = makeForm(vi.fn(), 'change', initialValues);
+      const email = form.bind('email');
+      
+      expect(email.modelValue).toBe('test@example.com');
+      
       scope.stop();
     });
   });

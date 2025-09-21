@@ -58,6 +58,12 @@ export function useForm(options: UseFormOptions) {
     }
   };
 
+  // Initialize errors for change mode with initial values
+  if (validationMode === 'change') {
+    const result = v.safeParse(schema, values);
+    fillErrorsFromIssues((result as any).issues);
+  }
+
   const recomputeErrors = () => {
     const result = v.safeParse(schema, values);
     fillErrorsFromIssues((result as any).issues);
@@ -130,6 +136,12 @@ export function useForm(options: UseFormOptions) {
     hasValidatedOnce.value = validationMode === 'change';
     hasSubmittedOnce.value = false;
     for (const k of Object.keys(errors)) delete (errors as any)[k];
+    
+    // Re-initialize errors for change mode after reset
+    if (validationMode === 'change') {
+      const result = v.safeParse(schema, values);
+      fillErrorsFromIssues((result as any).issues);
+    }
   };
 
   const setErrors = (next: Record<string, string | null>) => {

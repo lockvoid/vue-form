@@ -42,6 +42,7 @@ const makeHost = (opts?: {
   mode?: 'change' | 'submit' | 'blur';
   onSubmitImpl?: (vals: any, emit: (e: string, ...args: any[]) => void) => unknown | Promise<unknown>;
   renderErrors?: boolean;
+  initialValues?: Record<string, any>;
 }) =>
   defineComponent({
     name: 'UseFormHost',
@@ -53,6 +54,7 @@ const makeHost = (opts?: {
       const form = useForm({
         schema,
         validationMode: opts?.mode ?? 'change',
+        ...(opts?.initialValues && { initialValues: opts.initialValues }),
         onSubmit: (vals: any) =>
           opts?.onSubmitImpl
             ? opts.onSubmitImpl(vals, emit)
@@ -296,6 +298,193 @@ describe('useForm — integration', () => {
       await wrapper.get('form').trigger('submit.prevent');
       await flushAll(2);
       expect(onSubmitSpy).toHaveBeenCalledWith({ email: 'valid@email.com' }, expect.any(Function));
+    });
+  });
+
+  describe('initialValues', () => {
+    it('displays initial values in input fields', async () => {
+      const initialValues = { email: 'initial@example.com' };
+      const Host = makeHost({ mode: 'change', initialValues });
+      const wrapper = mount(Host);
+
+      const email = wrapper.get('[data-testid="email"]');
+      expect((email.element as HTMLInputElement).value).toBe('initial@example.com');
+    });
+
+    it('validates initial values in change mode', async () => {
+      const initialValues = { email: 'invalid-email' };
+      const Host = makeHost({ mode: 'change', renderErrors: true, initialValues });
+      const wrapper = mount(Host);
+
+      await nextTick();
+      const submit = wrapper.get('[data-testid="submit"]');
+      const errorText = () => wrapper.get('[data-testid="error-email"]').text() || '';
+
+      expect(submit.attributes('disabled')).toBe('');
+      expect(errorText()).not.toBe('');
+    });
+
+    it('does not validate initial values in submit mode', async () => {
+      const initialValues = { email: 'invalid-email' };
+      const Host = makeHost({ mode: 'submit', renderErrors: true, initialValues });
+      const wrapper = mount(Host);
+
+      await nextTick();
+      const submit = wrapper.get('[data-testid="submit"]');
+      const errorText = () => wrapper.get('[data-testid="error-email"]').text() || '';
+
+      expect(submit.attributes('disabled')).toBeUndefined();
+      expect(errorText()).toBe('');
+    });
+
+    it('does not validate initial values in blur mode', async () => {
+      const initialValues = { email: 'invalid-email' };
+      const Host = makeHost({ mode: 'blur', renderErrors: true, initialValues });
+      const wrapper = mount(Host);
+
+      await nextTick();
+      const submit = wrapper.get('[data-testid="submit"]');
+      const errorText = () => wrapper.get('[data-testid="error-email"]').text() || '';
+
+      expect(submit.attributes('disabled')).toBeUndefined();
+      expect(errorText()).toBe('');
+    });
+
+    it('allows changing from initial values', async () => {
+      const initialValues = { email: 'initial@example.com' };
+      const Host = makeHost({ mode: 'change', initialValues });
+      const wrapper = mount(Host);
+
+      const email = wrapper.get('[data-testid="email"]');
+      expect((email.element as HTMLInputElement).value).toBe('initial@example.com');
+
+      await email.setValue('changed@example.com');
+      await nextTick();
+      expect((email.element as HTMLInputElement).value).toBe('changed@example.com');
+    });
+
+    it('submits with valid initial values', async () => {
+      const onSubmitSpy = vi.fn();
+      const initialValues = { email: 'valid@example.com' };
+      const Host = makeHost({ 
+        mode: 'change', 
+        initialValues, 
+        onSubmitImpl: onSubmitSpy 
+      });
+      const wrapper = mount(Host);
+
+      const submit = wrapper.get('[data-testid="submit"]');
+      expect(submit.attributes('disabled')).toBeUndefined();
+
+      await wrapper.get('form').trigger('submit.prevent');
+      await flushAll(2);
+
+      expect(onSubmitSpy).toHaveBeenCalledWith({ email: 'valid@example.com' }, expect.any(Function));
+    });
+
+    it('does not submit with invalid initial values in change mode', async () => {
+      const onSubmitSpy = vi.fn();
+      const initialValues = { email: 'invalid-email' };
+      const Host = makeHost({ 
+        mode: 'change', 
+        initialValues, 
+        onSubmitImpl: onSubmitSpy 
+      });
+      const wrapper = mount(Host);
+
+      await wrapper.get('form').trigger('submit.prevent');
+      await flushAll(2);
+
+      expect(onSubmitSpy).not.toHaveBeenCalled();
+    });
+
+    it('submits with invalid initial values in submit mode until validation is triggered', async () => {
+      const onSubmitSpy = vi.fn();
+      const initialValues = { email: 'invalid-email' };
+      const Host = makeHost({ 
+        mode: 'submit', 
+        initialValues, 
+        onSubmitImpl: onSubmitSpy 
+      });
+      const wrapper = mount(Host);
+
+      // First submit should trigger validation and fail
+      await wrapper.get('form').trigger('submit.prevent');
+      await flushAll(2);
+
+      expect(onSubmitSpy).not.toHaveBeenCalled();
+    });
+
+    it('works with blur validation and initial values', async () => {
+      const initialValues = { email: 'invalid-email' };
+      const Host = makeHost({ mode: 'blur', renderErrors: true, initialValues });
+      const wrapper = mount(Host);
+
+      const email = wrapper.get('[data-testid="email"]');
+      const errorText = () => wrapper.get('[data-testid="error-email"]').text() || '';
+
+      // Initial state - no errors shown
+      expect(errorText()).toBe('');
+
+      // Blur should trigger validation
+      await email.trigger('blur');
+      await flushAll(2);
+      expect(errorText()).not.toBe('');
+
+      // Fix the value and blur again
+      await email.setValue('valid@example.com');
+      await email.trigger('blur');
+      await flushAll(2);
+      expect(errorText()).toBe('');
+    });
+
+    it('handles empty initial values', async () => {
+      const initialValues = {};
+      const Host = makeHost({ mode: 'change', initialValues });
+      const wrapper = mount(Host);
+
+      const email = wrapper.get('[data-testid="email"]');
+      expect((email.element as HTMLInputElement).value).toBe('');
+    });
+
+    it('preserves initial values after form reset', async () => {
+      const initialValues = { email: 'initial@example.com' };
+      const Host = defineComponent({
+        name: 'ResetTestHost',
+        components: { FakeTextInput },
+        setup() {
+          const schema = v.pipe(v.object({ email: v.pipe(v.string(), v.email()) }));
+          const form = useForm({
+            schema,
+            validationMode: 'change',
+            initialValues,
+            onSubmit: vi.fn(),
+          });
+          return { form };
+        },
+        template: `
+          <form @submit.prevent="form.submit">
+            <FakeTextInput v-bind="form.bind('email')" />
+            <button type="button" data-testid="reset" @click="form.reset()">Reset</button>
+            <div data-testid="form-email">{{ form.getValue('email') }}</div>
+          </form>
+        `,
+      });
+
+      const wrapper = mount(Host);
+      const email = wrapper.get('[data-testid="email"]');
+      const resetBtn = wrapper.get('[data-testid="reset"]');
+      const formEmail = wrapper.get('[data-testid="form-email"]');
+
+      // Change value
+      await email.setValue('changed@example.com');
+      await flushAll(2);
+      expect(formEmail.text()).toBe('changed@example.com');
+
+      // Reset should restore initial values
+      await resetBtn.trigger('click');
+      await flushAll(2);
+      expect(formEmail.text()).toBe('initial@example.com');
     });
   });
 });
