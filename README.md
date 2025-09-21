@@ -1,14 +1,13 @@
+
 # @lockvoid/vue-form
 
 Tiny, fast, **Vue 3** form composable with **stable bindings** and **Valibot** validation.
 
-- Zero components, just a composable
-- Stable `bind()` objects (no churn)
-- Easy to unit/integration test
-- Works with any input (native or custom) via a simple binding shape
-- Two validation modes: `"change"` and `"submit"`
-
----
+-   Zero components, just a composable
+-   Stable `bind()` objects (no churn)
+-   Easy to unit/integration test
+-   Works with any input (native or custom) via a simple binding shape
+-   Two validation modes: `"change"` and `"submit"`
 
 ## Installation
 
@@ -21,11 +20,10 @@ npm i @lockvoid/vue-form valibot
 
 # or with yarn
 yarn add @lockvoid/vue-form valibot
+
 ```
 
 > `valibot` is a peer dependency.
-
----
 
 ## Quick start
 
@@ -43,7 +41,7 @@ const schema = v.pipe(
 const form = useForm({
   schema,
 
-  validationMode: 'change', // 'submit' by default
+  validationMode: 'change',
 
   async onSubmit({ email }) {
     await api.createOtp({ email })
@@ -53,25 +51,17 @@ const form = useForm({
 
 <template>
   <form @submit.prevent="form.submit">
-    <!-- Works with any input: provide modelValue + one of the handlers -->
-    <input
-      v-bind="form.bind('email')"
-      placeholder="Email"
-      autocomplete="email"
-    />
+    <inputv-bind="form.bind('email')" placeholder="Email" />
 
-    <!-- NOTE: nested refs require `.value` in templates -->
     <button type="submit" :disabled="form.isInvalid.value">
       Submit
     </button>
 
-    <!-- Example errors rendering (optional) -->
     <p v-if="form.errors.email">{{ form.errors.email }}</p>
   </form>
 </template>
-```
 
----
+```
 
 ## Concepts
 
@@ -89,22 +79,21 @@ const binding = form.bind('email')
  * - onChange(e)
  * - name
  */
+
 ```
 
 This avoids unnecessary prop/listener diffs in child inputs.
 
 You can use it with:
-- native `<input>` (uses `onInput`)
-- custom components using `v-model` (uses `onUpdate:modelValue`)
-- or `onChange`-style components
+
+-   native `<input>` (uses `onInput`)
+-   custom components using `v-model` (uses `onUpdate:modelValue`)
+-   or `onChange`-style components
 
 ### Validation modes
 
-- `"change"`: validates on every change and updates `errors` live.
-- `"submit"` (default): UI stays **neutral** until the first submit.
-  After the first submit, errors are computed. (By default, errors persist until the next submit.)
-
----
+-   `"change"`: validates on every change and updates `errors` live.
+-   `"submit"` (default): UI stays **neutral** until the first submit. After the first submit, errors are computed. (By default, errors persist until the next submit.)
 
 ## API
 
@@ -119,6 +108,7 @@ type UseFormOptions = {
   validationMode?: ValidationMode; // default: 'submit'
   onSubmit: (values: Record<string, any>) => unknown | Promise<unknown>;
 }
+
 ```
 
 **Returns:**
@@ -137,6 +127,7 @@ type UseFormOptions = {
   values: Record<string, any>
   errors: Record<string, string | null>
 }
+
 ```
 
 **Binding shape:**
@@ -149,9 +140,8 @@ type Binding = {
   readonly onInput: (e: any) => void
   readonly onChange: (e: any) => void
 }
-```
 
----
+```
 
 ## Examples
 
@@ -160,17 +150,19 @@ type Binding = {
 ```vue
 <!-- MyInput.vue -->
 <script setup>
-const modelValue = defineModel() // Vue 3.4+ sugar for v-model
+const modelValue = defineModel()
 </script>
 
 <template>
   <input :value="modelValue" @input="modelValue = $event.target.value" />
 </template>
+
 ```
 
 ```vue
 <!-- usage -->
 <MyInput v-bind="form.bind('email')" />
+
 ```
 
 ### Rendering errors
@@ -179,21 +171,26 @@ const modelValue = defineModel() // Vue 3.4+ sugar for v-model
 <p v-if="form.errors.email" class="text-red-500">
   {{ form.errors.email }}
 </p>
+
 ```
 
-- In `"change"` mode: errors appear as you type.
-- In `"submit"` mode: errors appear only after `submit()` is attempted.
+-   In `"change"` mode: errors appear as you type.
+-   In `"submit"` mode: errors appear only after `submit()` is attempted.
 
 ### Loading state
 
 ```vue
 <button type="submit" :disabled="form.isInvalid.value">
-  <span v-if="form.isSubmitting.value">Loading…</span>
-  <span v-else>Submit</span>
-</button>
-```
+  <span v-if="form.isSubmitting.value">
+	Loading…
+  </span>
 
----
+  <span v-else>
+    Submit
+  </span>
+</button>
+
+```
 
 ## Testing
 
@@ -217,7 +214,6 @@ describe('useForm', () => {
       useForm({ schema, validationMode: 'change', onSubmit })
     )!
 
-    // drive via binding
     const bind = form.bind('email')
     bind['onUpdate:modelValue']('john@example.com')
     await nextTick()
@@ -229,6 +225,7 @@ describe('useForm', () => {
     scope.stop()
   })
 })
+
 ```
 
 ### Integration (mount)
@@ -266,11 +263,11 @@ it('enables submit when valid', async () => {
   const wrapper = mount(Host)
 
   await wrapper.get('[data-testid="email"]').setValue('a@b.com')
-
   await nextTick()
 
   expect(wrapper.get('[data-testid="submit"]').attributes('disabled')).toBeUndefined()
 })
+
 ```
 
 ## License
