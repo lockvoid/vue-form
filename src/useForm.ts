@@ -1,7 +1,7 @@
 import { reactive, ref, computed, onScopeDispose } from 'vue';
 import * as v from 'valibot';
 
-type ValidationMode = 'change' | 'submit';
+type ValidationMode = 'change' | 'submit' | 'blur';
 
 type UseFormOptions = {
   schema: any;
@@ -16,6 +16,7 @@ type Binding = {
   readonly 'onUpdate:modelValue': (v: any) => void;
   readonly onInput: (e: any) => void;
   readonly onChange: (e: any) => void;
+  readonly onBlur: (e: any) => void;
 };
 
 export function useForm(options: UseFormOptions) {
@@ -29,9 +30,10 @@ export function useForm(options: UseFormOptions) {
   const values = reactive<Record<string, any>>({ ...initialValues });
   const isSubmitting = ref(false);
   const hasValidatedOnce = ref(validationMode === 'change');
+  const hasSubmittedOnce = ref(false);
 
   const parseResult = computed(() => {
-    if (validationMode === 'submit' && !hasValidatedOnce.value) {
+    if ((validationMode === 'submit' || validationMode === 'blur') && !hasValidatedOnce.value) {
       return { success: true } as const;
     }
     return v.safeParse(schema, values);
@@ -65,6 +67,8 @@ export function useForm(options: UseFormOptions) {
     (values as any)[name] = value;
     if (validationMode === 'change') {
       recomputeErrors();
+    } else if (validationMode === 'submit' && hasSubmittedOnce.value) {
+      recomputeErrors();
     }
   };
 
@@ -78,6 +82,13 @@ export function useForm(options: UseFormOptions) {
     const onUpdateModelValue = (v: any) => setValue(name, v);
     const onInput = (e: any) => setValue(name, e?.target?.value ?? e);
     const onChange = (e: any) => setValue(name, e?.target?.value ?? e);
+    const onBlur = (e: any) => {
+      setValue(name, e?.target?.value ?? e);
+      if (validationMode === 'blur') {
+        hasValidatedOnce.value = true;
+        recomputeErrors();
+      }
+    };
 
     const binding: Binding = {} as Binding;
     Object.defineProperties(binding, {
@@ -86,6 +97,7 @@ export function useForm(options: UseFormOptions) {
       'onUpdate:modelValue': { value: onUpdateModelValue, enumerable: true },
       onInput: { value: onInput, enumerable: true },
       onChange: { value: onChange, enumerable: true },
+      onBlur: { value: onBlur, enumerable: true },
     });
 
     bindings.set(name, binding);
@@ -98,6 +110,7 @@ export function useForm(options: UseFormOptions) {
     if (isSubmitting.value) return;
 
     hasValidatedOnce.value = true;
+    hasSubmittedOnce.value = true;
     recomputeErrors();
 
     const result = v.safeParse(schema, values);
@@ -115,6 +128,7 @@ export function useForm(options: UseFormOptions) {
     for (const k of Object.keys(values)) delete (values as any)[k];
     Object.assign(values, nextValues);
     hasValidatedOnce.value = validationMode === 'change';
+    hasSubmittedOnce.value = false;
     for (const k of Object.keys(errors)) delete (errors as any)[k];
   };
 

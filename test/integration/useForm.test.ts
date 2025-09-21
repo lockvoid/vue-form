@@ -25,6 +25,7 @@ const FakeTextInput = defineComponent({
   name: 'FakeTextInput',
   props: {
     modelValue: { type: [String, Number, Boolean, Object, Array] as any, default: '' },
+    onBlur: { type: Function },
   },
   emits: ['update:modelValue'],
   template: `
@@ -32,12 +33,13 @@ const FakeTextInput = defineComponent({
       data-testid="email"
       :value="modelValue"
       @input="$emit('update:modelValue', $event.target.value)"
+      @blur="onBlur && onBlur($event)"
     />
   `,
 });
 
 const makeHost = (opts?: {
-  mode?: 'change' | 'submit';
+  mode?: 'change' | 'submit' | 'blur';
   onSubmitImpl?: (vals: any, emit: (e: string, ...args: any[]) => void) => unknown | Promise<unknown>;
   renderErrors?: boolean;
 }) =>
@@ -178,10 +180,122 @@ describe('useForm — integration', () => {
 
     await email.setValue('ok@site.io');
     await flushAll(2);
-    expect(errorText()).not.toBe('');
+    expect(errorText()).toBe(''); // Error should clear immediately after submit mode switches to change mode
 
     await wrapper.get('form').trigger('submit.prevent');
     await flushAll(2);
     expect(errorText()).toBe('');
+  });
+
+  it('validates on change after first submit in validationMode="submit"', async () => {
+    const onSubmitSpy = vi.fn();
+    const Host = makeHost({ mode: 'submit', renderErrors: true, onSubmitImpl: onSubmitSpy });
+    const wrapper = mount(Host);
+
+    const email = wrapper.get('[data-testid="email"]');
+    const errorText = () => wrapper.get('[data-testid="error-email"]').text() || '';
+
+    // Set invalid value and submit to trigger validation
+    await email.setValue('invalid');
+    await wrapper.get('form').trigger('submit.prevent');
+    await flushAll(2);
+    expect(errorText()).not.toBe('');
+    expect(onSubmitSpy).not.toHaveBeenCalled();
+
+    // Now changing value should validate immediately
+    await email.setValue('valid@email.com');
+    await flushAll(2);
+    expect(errorText()).toBe('');
+
+    // Change back to invalid should show error immediately
+    await email.setValue('invalid-again');
+    await flushAll(2);
+    expect(errorText()).not.toBe('');
+  });
+
+  describe('blur validation mode', () => {
+    it('does not show errors on change, only on blur', async () => {
+      const Host = makeHost({ mode: 'blur', renderErrors: true });
+      const wrapper = mount(Host);
+
+      const email = wrapper.get('[data-testid="email"]');
+      const errorText = () => wrapper.get('[data-testid="error-email"]').text() || '';
+
+      // Change to invalid value - should not show error
+      await email.setValue('invalid');
+      await nextTick();
+      expect(errorText()).toBe('');
+
+      // Blur should trigger validation and show error
+      await email.trigger('blur');
+      await flushAll(2);
+      expect(errorText()).not.toBe('');
+    });
+
+    it('clears errors on blur when value becomes valid', async () => {
+      const Host = makeHost({ mode: 'blur', renderErrors: true });
+      const wrapper = mount(Host);
+
+      const email = wrapper.get('[data-testid="email"]');
+      const errorText = () => wrapper.get('[data-testid="error-email"]').text() || '';
+
+      // Set invalid and blur to show error
+      await email.setValue('invalid');
+      await email.trigger('blur');
+      await flushAll(2);
+      expect(errorText()).not.toBe('');
+
+      // Set valid and blur to clear error
+      await email.setValue('valid@email.com');
+      await email.trigger('blur');
+      await flushAll(2);
+      expect(errorText()).toBe('');
+    });
+
+    it('continues blur validation after first blur', async () => {
+      const Host = makeHost({ mode: 'blur', renderErrors: true });
+      const wrapper = mount(Host);
+
+      const email = wrapper.get('[data-testid="email"]');
+      const submit = wrapper.get('[data-testid="submit"]');
+      const errorText = () => wrapper.get('[data-testid="error-email"]').text() || '';
+
+      // First blur with valid value
+      await email.setValue('valid@email.com');
+      await email.trigger('blur');
+      await flushAll(2);
+      expect(errorText()).toBe('');
+      expect(submit.attributes('disabled')).toBeUndefined();
+
+      // Change to invalid without blur - should not show error yet
+      await email.setValue('invalid');
+      await nextTick();
+      expect(errorText()).toBe('');
+      expect(submit.attributes('disabled')).toBeFalsy(); // Still appears valid
+
+      // Blur with invalid value - should show error
+      await email.trigger('blur');
+      await flushAll(2);
+      expect(errorText()).not.toBe('');
+      expect(submit.attributes('disabled')).toBe('');
+    });
+
+    it('allows form submission when valid after blur validation', async () => {
+      const onSubmitSpy = vi.fn();
+      const Host = makeHost({ mode: 'blur', renderErrors: true, onSubmitImpl: onSubmitSpy });
+      const wrapper = mount(Host);
+
+      const email = wrapper.get('[data-testid="email"]');
+
+      // Set valid value and blur
+      await email.setValue('valid@email.com');
+      await email.trigger('blur');
+      await flushAll(2);
+
+      // Submit should work
+      await wrapper.get('form').trigger('submit.prevent');
+      await flushAll(2);
+      expect(onSubmitSpy).toHaveBeenCalledWith({ email: 'valid@email.com' }, expect.any(Function));
+    });
   });
 });

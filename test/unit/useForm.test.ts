@@ -35,14 +35,22 @@ const setBoundFieldValue = (binding: any, value: unknown) => {
   throw new Error('Unknown binding shape from form.bind(...)');
 };
 
+const triggerBlur = (binding: any, value?: unknown) => {
+  if (typeof binding?.onBlur === 'function') {
+    binding.onBlur(value !== undefined ? { target: { value } } : {});
+    return;
+  }
+  throw new Error('onBlur handler not found in binding');
+};
+
 const makeSchema = () => v.pipe(v.object({ email: v.pipe(v.string(), v.email()) }));
 
-const makeForm = (onSubmit: (values: any) => any) => {
+const makeForm = (onSubmit: (values: any) => any, validationMode: 'change' | 'submit' | 'blur' = 'change') => {
   const scope = effectScope();
   const form = scope.run(() =>
     useForm({
       schema: makeSchema(),
-      validationMode: 'change',
+      validationMode,
       onSubmit,
     })
   )!;
@@ -177,5 +185,144 @@ describe('useForm — unit', () => {
     const b = form.bind('email');
     expect(a).toBe(b);
     scope.stop();
+  });
+
+  describe('blur validation mode', () => {
+    it('appears valid by default but does not show errors until blur', async () => {
+      const { scope, form } = makeForm(vi.fn(), 'blur');
+      const email = form.bind('email');
+
+      expect(unref(form.isInvalid)).toBe(false); // Appears valid until first blur
+      expect(form.errors.email).toBeUndefined();
+
+      setBoundFieldValue(email, 'not-an-email');
+      await nextTick();
+      expect(unref(form.isInvalid)).toBe(false); // Still appears valid
+      expect(form.errors.email).toBeUndefined();
+
+      scope.stop();
+    });
+
+    it('validates on blur and shows errors', async () => {
+      const { scope, form } = makeForm(vi.fn(), 'blur');
+      const email = form.bind('email');
+
+      setBoundFieldValue(email, 'not-an-email');
+      await nextTick();
+      expect(form.errors.email).toBeUndefined();
+
+      triggerBlur(email, 'not-an-email');
+      await nextTick();
+      expect(form.errors.email).toBeTruthy();
+      expect(unref(form.isInvalid)).toBe(true);
+
+      scope.stop();
+    });
+
+    it('clears errors when valid value is blurred', async () => {
+      const { scope, form } = makeForm(vi.fn(), 'blur');
+      const email = form.bind('email');
+
+      // First blur with invalid value
+      setBoundFieldValue(email, 'not-an-email');
+      triggerBlur(email, 'not-an-email');
+      await nextTick();
+      expect(form.errors.email).toBeTruthy();
+
+      // Second blur with valid value
+      setBoundFieldValue(email, 'valid@email.com');
+      triggerBlur(email, 'valid@email.com');
+      await nextTick();
+      expect(form.errors.email).toBeUndefined();
+      expect(unref(form.isInvalid)).toBe(false);
+
+      scope.stop();
+    });
+
+    it('continues to validate on blur after first blur', async () => {
+      const { scope, form } = makeForm(vi.fn(), 'blur');
+      const email = form.bind('email');
+
+      // First blur with valid value
+      setBoundFieldValue(email, 'valid@email.com');
+      triggerBlur(email, 'valid@email.com');
+      await nextTick();
+      expect(form.errors.email).toBeUndefined();
+
+      // Change to invalid without blur - should not show error
+      setBoundFieldValue(email, 'invalid');
+      await nextTick();
+      expect(form.errors.email).toBeUndefined();
+
+      // Blur with invalid value - should show error
+      triggerBlur(email, 'invalid');
+      await nextTick();
+      expect(form.errors.email).toBeTruthy();
+
+      scope.stop();
+    });
+  });
+
+  describe('submit validation mode with change after submit', () => {
+    it('does not validate on change initially', async () => {
+      const { scope, form } = makeForm(vi.fn(), 'submit');
+      const email = form.bind('email');
+
+      setBoundFieldValue(email, 'not-an-email');
+      await nextTick();
+      expect(unref(form.isInvalid)).toBe(false); // Should appear valid until submit
+      expect(form.errors.email).toBeUndefined();
+
+      scope.stop();
+    });
+
+    it('validates on change after first submit attempt', async () => {
+      const onSubmit = vi.fn();
+      const { scope, form } = makeForm(onSubmit, 'submit');
+      const email = form.bind('email');
+
+      // Set invalid value and submit
+      setBoundFieldValue(email, 'not-an-email');
+      await form.submit();
+      await nextTick();
+
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(form.errors.email).toBeTruthy();
+
+      // Now changing value should validate immediately
+      setBoundFieldValue(email, 'valid@email.com');
+      await nextTick();
+      expect(form.errors.email).toBeUndefined();
+      expect(unref(form.isInvalid)).toBe(false);
+
+      // Change back to invalid should show error immediately
+      setBoundFieldValue(email, 'invalid-again');
+      await nextTick();
+      expect(form.errors.email).toBeTruthy();
+      expect(unref(form.isInvalid)).toBe(true);
+
+      scope.stop();
+    });
+
+    it('successful submit enables change validation for future changes', async () => {
+      const onSubmit = vi.fn();
+      const { scope, form } = makeForm(onSubmit, 'submit');
+      const email = form.bind('email');
+
+      // Set valid value and submit successfully
+      setBoundFieldValue(email, 'valid@email.com');
+      await form.submit();
+      await nextTick();
+
+      expect(onSubmit).toHaveBeenCalledWith({ email: 'valid@email.com' });
+
+      // Now changing to invalid should validate immediately
+      setBoundFieldValue(email, 'invalid');
+      await nextTick();
+      expect(form.errors.email).toBeTruthy();
+      expect(unref(form.isInvalid)).toBe(true);
+
+      scope.stop();
+    });
   });
 });

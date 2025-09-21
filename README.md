@@ -5,7 +5,7 @@ Tiny, fast, **Vue 3** form composable with **stable bindings** and **Valibot** v
 - Tiny: 1kb bundle (gzipped)
 - Zero components, just a composable
 - Works with any input (native or custom) via a simple binding shape
-- Two validation modes: `"change"` and `"submit"`
+- Validation modes: `"change"`, `"blur"` and `"submit"`
 - Easy to unit/integration test
 
 ## Installation
@@ -71,7 +71,8 @@ You can use it with:
 ### Validation modes
 
 -   `"change"`: validates on every change and updates `errors` live.
--   `"submit"` (default): UI stays **neutral** until the first submit. After the first submit, errors are computed. (By default, errors persist until the next submit.)
+-   `"submit"` (default): UI stays **neutral** until the first submit. After the first submit, errors are computed and validation switches to change mode.
+-   `"blur"`: validates only when input loses focus (blur event). UI stays neutral until first blur.
 
 ## API
 
@@ -83,7 +84,7 @@ You can use it with:
 |----------|------|---------|-------------|
 | `schema` | Valibot schema | *required* | Validation schema |
 | `initialValues` | `Record<string, any>` | `{}` | Initial form values |
-| `validationMode` | `'change' \| 'submit'` | `'submit'` | When to validate |
+| `validationMode` | `'change' \| 'submit' \| 'blur'` | `'submit'` | When to validate |
 | `onSubmit` | `(values) => void \| Promise<void>` | *required* | Submit handler |
 
 ### Returns
@@ -103,6 +104,7 @@ Each `form.bind('field')` returns an object with:
 - `modelValue` - current field value
 - `onUpdate:modelValue` - v-model handler
 - `onInput` / `onChange` - input event handlers
+- `onBlur` - blur event handler (for blur validation mode)
 - `name` - field name
 
 ## Examples
@@ -135,7 +137,8 @@ const modelValue = defineModel()
 ```
 
 - In `"change"` mode: errors appear as you type.
-- In `"submit"` mode: errors appear only after `submit()` is attempted.
+- In `"submit"` mode: errors appear only after `submit()` is attempted, then validation switches to change mode.
+- In `"blur"` mode: errors appear only after input loses focus.
 
 ### Loading state
 
