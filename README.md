@@ -101,7 +101,8 @@ You can use it with:
 ### Binding
 
 Each `form.bind('field')` returns an object with:
-- `modelValue` - current field value
+- `modelValue` - current field value (for Vue components)
+- `value` - current field value (for native HTML inputs)
 - `onUpdate:modelValue` - v-model handler
 - `onInput` / `onChange` - input event handlers
 - `onBlur` - blur event handler (for blur validation mode)

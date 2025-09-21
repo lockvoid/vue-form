@@ -486,5 +486,45 @@ describe('useForm — integration', () => {
       await flushAll(2);
       expect(formEmail.text()).toBe('initial@example.com');
     });
+
+    it('works with native HTML input using v-bind', async () => {
+      const initialValues = { email: 'native@example.com' };
+      const Host = defineComponent({
+        name: 'NativeInputHost',
+
+        setup() {
+          const schema = v.pipe(v.object({ email: v.pipe(v.string(), v.email()) }));
+          
+          const form = useForm({
+            schema,
+            validationMode: 'change',
+            initialValues,
+            onSubmit: vi.fn(),
+          });
+          
+          return { form };
+        },
+
+        template: `
+          <form @submit.prevent="form.submit">
+            <input v-bind="form.bind('email')" data-testid="native-email" type="text" />
+            <div data-testid="form-value">{{ form.getValue('email') }}</div>
+          </form>
+        `,
+      });
+
+      const wrapper = mount(Host);
+      const email = wrapper.get('[data-testid="native-email"]');
+      const formValue = wrapper.get('[data-testid="form-value"]');
+
+      // Check that native input displays initial value
+      expect((email.element as HTMLInputElement).value).toBe('native@example.com');
+      expect(formValue.text()).toBe('native@example.com');
+
+      // Test that input changes work
+      await email.setValue('changed@example.com');
+      await flushAll(2);
+      expect(formValue.text()).toBe('changed@example.com');
+    });
   });
 });

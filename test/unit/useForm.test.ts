@@ -489,5 +489,33 @@ describe('useForm — unit', () => {
       
       scope.stop();
     });
+
+    it('binding includes both value and modelValue properties', () => {
+      const initialValues = { email: 'test@example.com' };
+      const { scope, form } = makeForm(vi.fn(), 'change', initialValues);
+      const binding = form.bind('email');
+      
+      expect(binding.modelValue).toBe('test@example.com');
+      expect(binding.value).toBe('test@example.com');
+      expect('value' in binding).toBe(true);
+      expect('modelValue' in binding).toBe(true);
+      
+      scope.stop();
+    });
+
+    it('maintains stable binding references', () => {
+      const { scope, form } = makeForm(vi.fn(), 'change');
+      
+      const binding1 = form.bind('email');
+      const binding2 = form.bind('email');
+      const binding3 = form.bind('email');
+      
+      // All references should be identical
+      expect(binding1).toBe(binding2);
+      expect(binding2).toBe(binding3);
+      expect(binding1).toBe(binding3);
+      
+      scope.stop();
+    });
   });
 });
