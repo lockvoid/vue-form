@@ -137,7 +137,12 @@ export function useForm(options: UseFormOptions) {
 
     isSubmitting.value = true;
     try {
-      await onSubmit({ ...values });
+      // Only submit values for fields that have been bound
+      const boundValues: Record<string, any> = {};
+      for (const fieldName of Array.from(bindings.keys())) {
+        boundValues[fieldName] = values[fieldName];
+      }
+      await onSubmit(boundValues);
     } finally {
       isSubmitting.value = false;
     }

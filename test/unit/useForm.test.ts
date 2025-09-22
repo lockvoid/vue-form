@@ -401,6 +401,9 @@ describe('useForm — unit', () => {
       const initialValues = { email: 'valid@example.com' };
       const { scope, form } = makeForm(onSubmit, 'change', initialValues);
       
+      // Need to bind the field for it to be included in submit
+      form.bind('email');
+      
       await form.submit();
       await nextTick();
       
@@ -413,6 +416,9 @@ describe('useForm — unit', () => {
       const onSubmit = vi.fn();
       const initialValues = { email: 'invalid-email' };
       const { scope, form } = makeForm(onSubmit, 'change', initialValues);
+      
+      // Need to bind the field for validation to work
+      form.bind('email');
       
       await form.submit();
       await nextTick();
@@ -514,6 +520,82 @@ describe('useForm — unit', () => {
       expect(binding1).toBe(binding2);
       expect(binding2).toBe(binding3);
       expect(binding1).toBe(binding3);
+      
+      scope.stop();
+    });
+
+    it('only submits bound fields, not unbound fields from initialValues', async () => {
+      const onSubmit = vi.fn();
+      const initialValues = { 
+        __typename: "User",
+        id: "123",
+        email: 'test@example.com',
+        unboundField: 'should-not-submit'
+      };
+      
+      const { scope, form } = makeForm(onSubmit, 'change', initialValues);
+      
+      // Only bind email field
+      const email = form.bind('email');
+      
+      // Verify all initial values are present
+      expect(form.getValue('email')).toBe('test@example.com');
+      expect(form.getValue('__typename')).toBe('User');
+      expect(form.getValue('id')).toBe('123');
+      expect(form.getValue('unboundField')).toBe('should-not-submit');
+      
+      await form.submit();
+      await nextTick();
+      
+      // Should only submit bound fields
+      expect(onSubmit).toHaveBeenCalledWith({ email: 'test@example.com' });
+      // Should NOT include unbound fields
+      expect(onSubmit).not.toHaveBeenCalledWith(expect.objectContaining({
+        __typename: expect.anything(),
+        id: expect.anything(),
+        unboundField: expect.anything()
+      }));
+      
+      scope.stop();
+    });
+
+    it('submits multiple bound fields but excludes unbound ones', async () => {
+      const makeMultiFieldSchema = () => v.pipe(v.object({ 
+        email: v.pipe(v.string(), v.email()),
+        name: v.pipe(v.string(), v.minLength(1))
+      }));
+      
+      const onSubmit = vi.fn();
+      const initialValues = { 
+        __typename: "User",
+        id: "456",
+        email: 'multi@example.com',
+        name: 'John Doe',
+        metadata: { source: 'graphql' }
+      };
+      
+      const scope = effectScope();
+      const form = scope.run(() =>
+        useForm({
+          schema: makeMultiFieldSchema(),
+          validationMode: 'change',
+          onSubmit,
+          initialValues,
+        })
+      )!;
+      
+      // Bind only email and name fields
+      form.bind('email');
+      form.bind('name');
+      
+      await form.submit();
+      await nextTick();
+      
+      // Should only submit bound fields
+      expect(onSubmit).toHaveBeenCalledWith({ 
+        email: 'multi@example.com',
+        name: 'John Doe'
+      });
       
       scope.stop();
     });
