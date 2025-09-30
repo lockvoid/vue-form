@@ -541,6 +541,9 @@ describe("useForm — unit", () => {
       expect(form.getValue("id")).toBe("123");
       expect(form.getValue("unboundField")).toBe("should-not-submit");
 
+      // Bind only the email field - this is crucial!
+      form.bind("email");
+
       await form.submit();
       await nextTick();
 
