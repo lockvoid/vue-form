@@ -1,5 +1,11 @@
 # @lockvoid/vue-form
 
+[![CI](https://github.com/lockvoid/vue-form/actions/workflows/test.yml/badge.svg)](https://github.com/lockvoid/vue-form/actions/workflows/test.yml)
+[![npm version](https://badge.fury.io/js/@lockvoid%2Fvue-form.svg)](https://badge.fury.io/js/@lockvoid%2Fvue-form)
+[![Coverage](https://codecov.io/gh/lockvoid/vue-form/branch/main/graph/badge.svg)](https://codecov.io/gh/lockvoid/vue-form)
+[![Bundlephobia](https://img.shields.io/bundlephobia/minzip/@lockvoid/vue-form)](https://bundlephobia.com/package/@lockvoid/vue-form)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Tiny, fast, **Vue 3** form composable with **stable bindings** and **Valibot** validation.
 
 - Tiny: 1kb bundle (gzipped)

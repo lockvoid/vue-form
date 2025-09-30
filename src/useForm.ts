@@ -1,7 +1,7 @@
-import { reactive, ref, computed, onScopeDispose, toRef } from 'vue';
-import * as v from 'valibot';
+import * as v from "valibot";
+import { reactive, ref, computed, onScopeDispose } from "vue";
 
-type ValidationMode = 'change' | 'submit' | 'blur';
+type ValidationMode = "change" | "submit" | "blur";
 
 type UseFormOptions = {
   schema: any;
@@ -14,7 +14,7 @@ type Binding = {
   modelValue: any;
   value: any;
   readonly name: string;
-  readonly 'onUpdate:modelValue': (v: any) => void;
+  readonly "onUpdate:modelValue": (v: any) => void;
   readonly onInput: (e: any) => void;
   readonly onChange: (e: any) => void;
   readonly onBlur: (e: any) => void;
@@ -25,17 +25,17 @@ export function useForm(options: UseFormOptions) {
   const {
     schema,
     initialValues = {},
-    validationMode = 'submit',
+    validationMode = "submit",
     onSubmit,
   } = options;
 
   const values = reactive<Record<string, any>>({ ...initialValues });
   const isSubmitting = ref(false);
-  const hasValidatedOnce = ref(validationMode === 'change');
+  const hasValidatedOnce = ref(validationMode === "change");
   const hasSubmittedOnce = ref(false);
 
   const parseResult = computed(() => {
-    if ((validationMode === 'submit' || validationMode === 'blur') && !hasValidatedOnce.value) {
+    if ((validationMode === "submit" || validationMode === "blur") && !hasValidatedOnce.value) {
       return { success: true } as const;
     }
     return v.safeParse(schema, values);
@@ -53,15 +53,15 @@ export function useForm(options: UseFormOptions) {
       const key =
         (leaf && (leaf.key ?? leaf)) ||
         (Array.isArray(path) && path[0]?.key) ||
-        'form';
-      if (typeof key === 'string') {
-        errors[key] = (issue as any).message || 'Invalid';
+        "form";
+      if (typeof key === "string") {
+        errors[key] = (issue as any).message || "Invalid";
       }
     }
   };
 
   // Initialize errors for change mode with initial values
-  if (validationMode === 'change') {
+  if (validationMode === "change") {
     const result = v.safeParse(schema, values);
     fillErrorsFromIssues((result as any).issues);
   }
@@ -80,9 +80,9 @@ export function useForm(options: UseFormOptions) {
       binding._updateBinding();
     }
 
-    if (validationMode === 'change') {
+    if (validationMode === "change") {
       recomputeErrors();
-    } else if (validationMode === 'submit' && hasSubmittedOnce.value) {
+    } else if (validationMode === "submit" && hasSubmittedOnce.value) {
       recomputeErrors();
     }
   };
@@ -99,7 +99,7 @@ export function useForm(options: UseFormOptions) {
     const onChange = (e: any) => setValue(name, e?.target?.value ?? e);
     const onBlur = (e: any) => {
       setValue(name, e?.target?.value ?? e);
-      if (validationMode === 'blur') {
+      if (validationMode === "blur") {
         hasValidatedOnce.value = true;
         recomputeErrors();
       }
@@ -109,7 +109,7 @@ export function useForm(options: UseFormOptions) {
       modelValue: getValue(name),
       value: getValue(name),
       name,
-      'onUpdate:modelValue': onUpdateModelValue,
+      "onUpdate:modelValue": onUpdateModelValue,
       onInput,
       onChange,
       onBlur,
@@ -151,12 +151,12 @@ export function useForm(options: UseFormOptions) {
   const reset = (nextValues: Record<string, any> = initialValues) => {
     for (const k of Object.keys(values)) delete (values as any)[k];
     Object.assign(values, nextValues);
-    hasValidatedOnce.value = validationMode === 'change';
+    hasValidatedOnce.value = validationMode === "change";
     hasSubmittedOnce.value = false;
     for (const k of Object.keys(errors)) delete (errors as any)[k];
 
     // Re-initialize errors for change mode after reset
-    if (validationMode === 'change') {
+    if (validationMode === "change") {
       const result = v.safeParse(schema, values);
       fillErrorsFromIssues((result as any).issues);
     }

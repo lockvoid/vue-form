@@ -1,16 +1,16 @@
-import { defineConfig } from 'vitest/config';
-import { URL, fileURLToPath } from 'node:url';
+import { URL, fileURLToPath } from "node:url";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    environment: 'happy-dom',
+    environment: "happy-dom",
 
     globals: true,
   },
 
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./', import.meta.url)),
+      "@": fileURLToPath(new URL("./", import.meta.url)),
     },
   },
 });

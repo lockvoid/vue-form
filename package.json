@@ -4,21 +4,20 @@
   "license": "MIT",
   "author": "LockVoid",
   "type": "module",
-  "engines": {
-    "node": "22.x",
-    "pnpm": "10.x"
-  },
   "scripts": {
+    "build": "tsc",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "test": "vitest --run",
-    "coverage": "vitest --run --coverage"
+    "coverage": "vitest --run --coverage",
+    "prepublishOnly": "pnpm build"
   },
   "devDependencies": {
-    "@lockvoid/eslint-config": "^0.5.9",
+    "@lockvoid/eslint-config": "^0.6.0",
     "@nuxt/test-utils": "^3.19.2",
     "@vue/test-utils": "^2.4.6",
     "eslint": "^9.31.0",
-    "eslint-plugin-tailwindcss": "^4.0.0-beta.0",
-    "eslint-plugin-vue": "^10.4.0",
+    "eslint-plugin-vue": "^10.5.0",
     "glob": "^11.0.3",
     "graphql": "^16.11.0",
     "happy-dom": "^18.0.1",
@@ -35,7 +34,13 @@
   },
   "exports": {
     ".": {
-      "import": "./src/index.ts"
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     }
-  }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE.md"
+  ]
 }
