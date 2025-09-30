@@ -16,7 +16,7 @@ export default defineConfig({
       ],
 
       include: [
-        "src/**/*"
+        "src/**/*",
       ],
     },
   },
