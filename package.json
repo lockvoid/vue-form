@@ -15,6 +15,7 @@
   "devDependencies": {
     "@lockvoid/eslint-config": "^0.6.0",
     "@nuxt/test-utils": "^3.19.2",
+    "@vitest/coverage-v8": "^3.2.4",
     "@vue/test-utils": "^2.4.6",
     "eslint": "^9.31.0",
     "eslint-plugin-vue": "^10.5.0",
