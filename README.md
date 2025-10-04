@@ -8,7 +8,7 @@
 
 Tiny, fast, **Vue 3** form composable with **stable bindings** and **Valibot** validation.
 
-- Tiny: 1kb bundle (gzipped)
+- 1 kB gzipped
 - Zero components, just a composable
 - Works with any input (native or custom) via a simple binding shape
 - Validation modes: `"change"`, `"blur"` and `"submit"`
