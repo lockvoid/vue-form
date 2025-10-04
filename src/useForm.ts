@@ -155,6 +155,13 @@ export function useForm(options: UseFormOptions) {
     hasSubmittedOnce.value = false;
     for (const k of Object.keys(errors)) delete (errors as any)[k];
 
+    // Update all existing bindings to reflect the reset values
+    for (const binding of bindings.values()) {
+      if (binding._updateBinding) {
+        binding._updateBinding();
+      }
+    }
+
     // Re-initialize errors for change mode after reset
     if (validationMode === "change") {
       const result = v.safeParse(schema, values);
